@@ -113,7 +113,7 @@ void _noteSuspendTransactionDebug(void)
 */
 NOTE_C_STATIC uint32_t _noteTransaction_calculateTimeoutMs(J *req, bool isReq)
 {
-    uint32_t result = (CARD_INTER_TRANSACTION_TIMEOUT_SEC * 1000);
+    uint32_t result = (CARD_INTER_TRANSACTION_TIMEOUT_SEC * 1000UL);
 
     // Interrogate the request
     if (JContainsString(req, (isReq ? "req" : "cmd"), "note.add")) {
@@ -123,7 +123,7 @@ NOTE_C_STATIC uint32_t _noteTransaction_calculateTimeoutMs(J *req, bool isReq)
             result = JGetInt(req, "milliseconds");
         } else if (JIsPresent(req, "seconds")) {
             NOTE_C_LOG_DEBUG("Using `seconds` parameter value for timeout.");
-            result = (JGetInt(req, "seconds") * 1000);
+            result = (JGetInt(req, "seconds") * 1000UL);
         }
     } else if (JContainsString(req, (isReq ? "req" : "cmd"), "web.")) {
         NOTE_C_LOG_DEBUG("web.* request received.");
@@ -133,11 +133,11 @@ NOTE_C_STATIC uint32_t _noteTransaction_calculateTimeoutMs(J *req, bool isReq)
             result = JGetInt(req, "milliseconds");
         } else if (JIsPresent(req, "seconds")) {
             NOTE_C_LOG_DEBUG("Using `seconds` parameter value for timeout.");
-            result = (JGetInt(req, "seconds") * 1000);
+            result = (JGetInt(req, "seconds") * 1000UL);
         } else {
             NOTE_C_LOG_DEBUG("No `milliseconds` or `seconds` parameter "
                              "provided. Defaulting to 90-second timeout.");
-            result = (90 * 1000);
+            result = (90UL * 1000UL);
         }
     }
 
@@ -319,7 +319,7 @@ J *NoteRequestResponseWithRetry(J *req, uint32_t timeoutSeconds)
 
     // Calculate expiry time in milliseconds
     uint32_t startMs = _GetMs();
-    uint32_t timeoutMs = timeoutSeconds * 1000;
+    uint32_t timeoutMs = timeoutSeconds * 1000UL;
 
     while(true) {
         // Execute the transaction
@@ -378,7 +378,7 @@ J *NoteRequestResponseWithRetry(J *req, uint32_t timeoutSeconds)
 */
 char * NoteRequestResponseJSON(const char *reqJSON)
 {
-    const uint32_t transactionTimeoutMs = (CARD_INTER_TRANSACTION_TIMEOUT_SEC * 1000);
+    const uint32_t transactionTimeoutMs = (CARD_INTER_TRANSACTION_TIMEOUT_SEC * 1000UL);
     char *rspJSON = NULL;
     char *allocatedJSON = NULL; // required to free the string if it is not newline-terminated
     bool isCmdPipeline = false;
@@ -579,7 +579,7 @@ J *_noteTransactionShouldLock(J *req, bool lockNotecard)
     const uint32_t id = JGetInt(req, "id");
 
     // Ensure the Notecard is ready
-    if (!_TransactionStart(CARD_INTER_TRANSACTION_TIMEOUT_SEC * 1000)) {
+    if (!_TransactionStart(CARD_INTER_TRANSACTION_TIMEOUT_SEC * 1000UL)) {
         _Free(json);
         const char *errStr = ERRSTR("Notecard not ready (CTX/RTX) {io}", c_ioerr);
         if (cmdFound) {
