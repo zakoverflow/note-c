@@ -123,7 +123,7 @@ NOTE_C_STATIC uint32_t _noteTransaction_calculateTimeoutMs(J *req, bool isReq)
             result = JGetInt(req, "milliseconds");
         } else if (JIsPresent(req, "seconds")) {
             NOTE_C_LOG_DEBUG("Using `seconds` parameter value for timeout.");
-            result = (JGetInt(req, "seconds") * 1000);
+            result = (JGetInt(req, "seconds") * 1000U);
         }
     } else if (JContainsString(req, (isReq ? "req" : "cmd"), "web.")) {
         NOTE_C_LOG_DEBUG("web.* request received.");
@@ -133,7 +133,7 @@ NOTE_C_STATIC uint32_t _noteTransaction_calculateTimeoutMs(J *req, bool isReq)
             result = JGetInt(req, "milliseconds");
         } else if (JIsPresent(req, "seconds")) {
             NOTE_C_LOG_DEBUG("Using `seconds` parameter value for timeout.");
-            result = (JGetInt(req, "seconds") * 1000);
+            result = (JGetInt(req, "seconds") * 1000U);
         } else {
             NOTE_C_LOG_DEBUG("No `milliseconds` or `seconds` parameter "
                              "provided. Defaulting to 90-second timeout.");
@@ -319,7 +319,7 @@ J *NoteRequestResponseWithRetry(J *req, uint32_t timeoutSeconds)
 
     // Calculate expiry time in milliseconds
     uint32_t startMs = _GetMs();
-    uint32_t timeoutMs = timeoutSeconds * 1000;
+    uint32_t timeoutMs = timeoutSeconds * 1000U;
 
     while(true) {
         // Execute the transaction
