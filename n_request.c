@@ -137,7 +137,7 @@ NOTE_C_STATIC uint32_t _noteTransaction_calculateTimeoutMs(J *req, bool isReq)
         } else {
             NOTE_C_LOG_DEBUG("No `milliseconds` or `seconds` parameter "
                              "provided. Defaulting to 90-second timeout.");
-            result = (90 * 1000);
+            result = (90U * 1000U);
         }
     }
 
