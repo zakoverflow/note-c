@@ -377,7 +377,7 @@ SCENARIO("_noteTransaction_calculateTimeoutMs")
             J *resp = NoteTransaction(req);
 
             THEN("The timeout value is set to 90 seconds") {
-                CHECK(_noteJSONTransaction_fake.arg3_val == (90 * 1000));
+                CHECK(_noteJSONTransaction_fake.arg3_val == (90U * 1000U));
             }
 
             JDelete(resp);
@@ -394,7 +394,7 @@ SCENARIO("_noteTransaction_calculateTimeoutMs")
             J *resp = NoteTransaction(req);
 
             THEN("The timeout value is set to 90 seconds") {
-                CHECK(_noteJSONTransaction_fake.arg3_val == (90 * 1000));
+                CHECK(_noteJSONTransaction_fake.arg3_val == (90U * 1000U));
             }
 
             JDelete(resp);
