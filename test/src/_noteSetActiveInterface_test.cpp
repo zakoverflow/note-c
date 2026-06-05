@@ -19,6 +19,7 @@ extern volatile int hookActiveInterface;
 
 extern void * notecardReset;
 extern void * notecardTransaction;
+extern void * notecardDrain;
 extern void * notecardChunkedReceive;
 extern void * notecardChunkedTransmit;
 
@@ -34,6 +35,7 @@ SCENARIO("_noteSetActiveInterface")
 
         notecardReset = NULL;
         notecardTransaction = NULL;
+        notecardDrain = NULL;
         notecardChunkedReceive = NULL;
         notecardChunkedTransmit = NULL;
 
@@ -47,6 +49,7 @@ SCENARIO("_noteSetActiveInterface")
             THEN("The interface hooks are set to NULL") {
                 CHECK(notecardReset == NULL);
                 CHECK(notecardTransaction == NULL);
+                CHECK(notecardDrain == NULL);
                 CHECK(notecardChunkedReceive == NULL);
                 CHECK(notecardChunkedTransmit == NULL);
             }
@@ -62,6 +65,7 @@ SCENARIO("_noteSetActiveInterface")
             THEN("The interface hooks are set") {
                 CHECK(reinterpret_cast<void *>(_i2cNoteReset) == notecardReset);
                 CHECK(reinterpret_cast<void *>(_i2cNoteTransaction) == notecardTransaction);
+                CHECK(reinterpret_cast<void *>(_i2cNoteDrain) == notecardDrain);
                 CHECK(reinterpret_cast<void *>(_i2cNoteChunkedReceive) == notecardChunkedReceive);
                 CHECK(reinterpret_cast<void *>(_i2cNoteChunkedTransmit) == notecardChunkedTransmit);
             }
@@ -77,6 +81,7 @@ SCENARIO("_noteSetActiveInterface")
             THEN("The interface hooks are set") {
                 CHECK(reinterpret_cast<void *>(_serialNoteReset) == notecardReset);
                 CHECK(reinterpret_cast<void *>(_serialNoteTransaction) == notecardTransaction);
+                CHECK(reinterpret_cast<void *>(_serialNoteDrain) == notecardDrain);
                 CHECK(reinterpret_cast<void *>(_serialChunkedReceive) == notecardChunkedReceive);
                 CHECK(reinterpret_cast<void *>(_serialChunkedTransmit) == notecardChunkedTransmit);
             }
@@ -92,6 +97,7 @@ SCENARIO("_noteSetActiveInterface")
             THEN("The interface hooks are set to NULL") {
                 CHECK(notecardReset == NULL);
                 CHECK(notecardTransaction == NULL);
+                CHECK(notecardDrain == NULL);
                 CHECK(notecardChunkedReceive == NULL);
                 CHECK(notecardChunkedTransmit == NULL);
             }
@@ -103,6 +109,7 @@ SCENARIO("_noteSetActiveInterface")
 
         notecardReset = reinterpret_cast<void *>(0x19790917);
         notecardTransaction = reinterpret_cast<void *>(0x19800206);
+        notecardDrain = reinterpret_cast<void *>(0x20040218);
         notecardChunkedReceive = reinterpret_cast<void *>(0x20130829);
         notecardChunkedTransmit = reinterpret_cast<void *>(0x20180731);
 
@@ -116,6 +123,7 @@ SCENARIO("_noteSetActiveInterface")
             THEN("The interface hooks are set to NULL") {
                 CHECK(notecardReset == NULL);
                 CHECK(notecardTransaction == NULL);
+                CHECK(notecardDrain == NULL);
                 CHECK(notecardChunkedReceive == NULL);
                 CHECK(notecardChunkedTransmit == NULL);
             }
@@ -131,6 +139,7 @@ SCENARIO("_noteSetActiveInterface")
             THEN("The interface hooks are set") {
                 CHECK(reinterpret_cast<void *>(_i2cNoteReset) == notecardReset);
                 CHECK(reinterpret_cast<void *>(_i2cNoteTransaction) == notecardTransaction);
+                CHECK(reinterpret_cast<void *>(_i2cNoteDrain) == notecardDrain);
                 CHECK(reinterpret_cast<void *>(_i2cNoteChunkedReceive) == notecardChunkedReceive);
                 CHECK(reinterpret_cast<void *>(_i2cNoteChunkedTransmit) == notecardChunkedTransmit);
             }
@@ -146,6 +155,7 @@ SCENARIO("_noteSetActiveInterface")
             THEN("The interface hooks are set") {
                 CHECK(reinterpret_cast<void *>(_serialNoteReset) == notecardReset);
                 CHECK(reinterpret_cast<void *>(_serialNoteTransaction) == notecardTransaction);
+                CHECK(reinterpret_cast<void *>(_serialNoteDrain) == notecardDrain);
                 CHECK(reinterpret_cast<void *>(_serialChunkedReceive) == notecardChunkedReceive);
                 CHECK(reinterpret_cast<void *>(_serialChunkedTransmit) == notecardChunkedTransmit);
             }
@@ -161,6 +171,7 @@ SCENARIO("_noteSetActiveInterface")
             THEN("The interface hooks are set to NULL") {
                 CHECK(notecardReset == NULL);
                 CHECK(notecardTransaction == NULL);
+                CHECK(notecardDrain == NULL);
                 CHECK(notecardChunkedReceive == NULL);
                 CHECK(notecardChunkedTransmit == NULL);
             }

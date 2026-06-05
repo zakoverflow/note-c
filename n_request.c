@@ -770,73 +770,6 @@ bool NoteReset(void)
     return !resetRequired;
 }
 
-/*!
- @internal
-
- @brief Drain any residual bytes from the transport input buffer.
-
- On serial, read-and-discard whatever is already buffered, then wait for a
- short quiescent period to confirm no further bytes arrive. This handles
- stale bytes left over from a prior ping at a different baud rate. On
- I2C, query and consume whatever the Notecard has queued. The adaptive
- loop on serial has a hard cap so it cannot run away in the presence of
- continuous line noise.
- */
-static void _notePingDrainInput(void)
-{
-    const int iface = NoteGetActiveInterface();
-
-    if (iface == NOTE_C_INTERFACE_SERIAL) {
-        // Tuned for the `echo` probe used by NotePing: the only residual
-        // traffic possible is a short echo response or error from a prior
-        // wrong-baud ping, both well under 80 bytes. At 9600 baud a byte is
-        // ~1 ms, so a 20 ms quiet window (~19 byte-times) confirms the stream
-        // has ended, and a 100 ms total cap covers ~77 bytes of continuous
-        // residual transmission.
-        const uint32_t quietMs = 20;
-        const uint32_t maxMs   = 100;
-        const uint32_t startMs = _GetMs();
-        uint32_t lastByteMs = startMs;
-        for (;;) {
-            bool drained = false;
-            while (_SerialAvailable()) {
-                (void)_SerialReceive();
-                drained = true;
-            }
-            if (drained) {
-                lastByteMs = _GetMs();
-            }
-            if ((_GetMs() - lastByteMs) >= quietMs) {
-                return;
-            }
-            if ((_GetMs() - startMs) >= maxMs) {
-                return;
-            }
-            _DelayMs(1);
-        }
-    } else if (iface == NOTE_C_INTERFACE_I2C) {
-        // I2C is synchronous — no "in-flight" case. Just query what the
-        // Notecard has queued and read it off in chunks.
-        uint8_t scratch[32];
-        uint32_t available = 0;
-        _LockI2C();
-        if (_I2CReceive(_I2CAddress(), scratch, 0, &available) != NULL) {
-            _UnlockI2C();
-            return;
-        }
-        while (available > 0) {
-            uint16_t chunk = (available > sizeof(scratch))
-                             ? (uint16_t)sizeof(scratch)
-                             : (uint16_t)available;
-            if (_I2CReceive(_I2CAddress(), scratch, chunk, &available) != NULL) {
-                _UnlockI2C();
-                return;
-            }
-        }
-        _UnlockI2C();
-    }
-}
-
 bool NotePing(void)
 {
     // Short, fixed timeout. Long enough for a round-trip `echo` at 9600 baud
@@ -894,7 +827,7 @@ bool NotePing(void)
     // Drain residual bytes from the transport before pinging. Must happen
     // inside the lock so nothing else can refill the buffer between the
     // drain and the transaction.
-    _notePingDrainInput();
+    _Drain();
 
     // Deliberately do NOT honor `resetRequired` and do NOT call _Reset():
     // reset has its own retries/delays and can itself fail at a wrong baud

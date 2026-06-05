@@ -16,6 +16,45 @@
 
 #include "n_lib.h"
 
+NOTE_C_STATIC void _serialDrainInput(uint32_t quietMs, uint32_t maxMs, bool resetQuietOnAnyByte,
+                                     bool *somethingFound, bool *nonControlCharFound);
+
+NOTE_C_STATIC void _serialDrainInput(uint32_t quietMs, uint32_t maxMs, bool resetQuietOnAnyByte,
+                                     bool *somethingFound, bool *nonControlCharFound)
+{
+    const uint32_t startMs = _GetMs();
+    uint32_t lastActivityMs = startMs;
+
+    for (;;) {
+        bool drained = false;
+        while (_SerialAvailable()) {
+            const char ch = _SerialReceive();
+            drained = true;
+            if (somethingFound != NULL) {
+                *somethingFound = true;
+            }
+            if (ch != '\n' && ch != '\r') {
+                if (nonControlCharFound != NULL) {
+                    *nonControlCharFound = true;
+                }
+                lastActivityMs = _GetMs();
+            } else if (resetQuietOnAnyByte) {
+                lastActivityMs = _GetMs();
+            }
+        }
+        if (drained && resetQuietOnAnyByte) {
+            lastActivityMs = _GetMs();
+        }
+        if ((_GetMs() - lastActivityMs) >= quietMs) {
+            return;
+        }
+        if (maxMs && (_GetMs() - startMs) >= maxMs) {
+            return;
+        }
+        _DelayMs(1);
+    }
+}
+
 /**************************************************************************/
 /*!
   @brief  Given a JSON string, perform a serial transaction with the Notecard.
@@ -175,27 +214,9 @@ bool _serialNoteReset(void)
         uint8_t lf[] = {'\n'};
         _SerialTransmit(lf, 1, true);
 
-        // Drain all communications for 500ms
         bool somethingFound = false;
         bool nonControlCharFound = false;
-
-        // Read Serial data for at least CARD_RESET_DRAIN_MS continously
-        for (uint32_t startMs = _GetMs() ; (_GetMs() - startMs) < CARD_RESET_DRAIN_MS ;) {
-            // Determine if Serial data is available
-            while (_SerialAvailable()) {
-                somethingFound = true;
-                // The Notecard responds to a bare `\n` with `\r\n`. If we get
-                // any other characters back, it means the host and Notecard
-                // aren't synced up yet and we need to transmit `\n` again.
-                char ch = _SerialReceive();
-                if (ch != '\n' && ch != '\r') {
-                    nonControlCharFound = true;
-                    // Reset the timer with each non-control character
-                    startMs = _GetMs();
-                }
-            }
-            _DelayMs(1);
-        }
+        _serialDrainInput(CARD_RESET_DRAIN_MS, 0, false, &somethingFound, &nonControlCharFound);
 
         // If all we got back is newlines, we're ready
         if (somethingFound && !nonControlCharFound) {
@@ -216,6 +237,21 @@ bool _serialNoteReset(void)
 
     // Done
     return notecardReady;
+}
+
+/**************************************************************************/
+/*!
+  @brief Drain any residual bytes from the serial input buffer.
+*/
+/**************************************************************************/
+void _serialNoteDrain(void)
+{
+    // Tuned for the `echo` probe used by NotePing: the only residual traffic
+    // possible is a short echo response or error from a prior wrong-baud ping,
+    // both well under 80 bytes. At 9600 baud a byte is ~1 ms, so a 20 ms quiet
+    // window confirms the stream has ended, and a 100 ms total cap covers
+    // ~77 bytes of continuous residual transmission.
+    _serialDrainInput(20, 100, true, NULL, NULL);
 }
 
 /**************************************************************************/

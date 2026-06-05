@@ -17,6 +17,7 @@
 
 // Forwards
 NOTE_C_STATIC void _delayIO(void);
+NOTE_C_STATIC const char *_i2cDrainInput(bool *somethingFound, bool *nonControlCharFound);
 NOTE_C_STATIC const char * _i2cNoteQueryLength(uint32_t * available, uint32_t timeoutMs);
 
 /**************************************************************************/
@@ -31,6 +32,40 @@ NOTE_C_STATIC void _delayIO(void)
 {
     if (!cardTurboIO) {
         _DelayMs(6);
+    }
+}
+
+NOTE_C_STATIC const char *_i2cDrainInput(bool *somethingFound, bool *nonControlCharFound)
+{
+    uint8_t buffer[ALLOC_CHUNK] = {0};
+    uint32_t available = 0;
+    uint16_t chunkLen = 0;
+
+    for (;;) {
+        const char *err = _I2CReceive(_I2CAddress(), buffer, chunkLen, &available);
+        if (err) {
+            return err;
+        }
+
+        if (chunkLen && somethingFound != NULL) {
+            *somethingFound = true;
+        }
+        if (chunkLen && nonControlCharFound != NULL) {
+            for (size_t i = 0; i < chunkLen; ++i) {
+                char ch = buffer[i];
+                if (ch != '\n' && ch != '\r') {
+                    *nonControlCharFound = true;
+                    break;
+                }
+            }
+        }
+
+        chunkLen = (available > 0xFFFF) ? 0xFFFF : available;
+        chunkLen = (chunkLen > sizeof(buffer)) ? sizeof(buffer) : chunkLen;
+        chunkLen = (chunkLen > _I2CMax()) ? _I2CMax() : chunkLen;
+        if (!chunkLen) {
+            return NULL;
+        }
     }
 }
 
@@ -234,23 +269,14 @@ bool _i2cNoteReset(void)
         // Wait for the Notecard to respond with a carriage return and newline
         _DelayMs(CARD_REQUEST_I2C_SEGMENT_DELAY_MS);
 
-        // Determine if I2C data is available
-        // set initial state of variable to perform query
-        uint16_t chunkLen = 0;
-
         // Content flags to determine if reset conditions are met.
         bool somethingFound = false;
         bool nonControlCharFound = false;
 
         // Read I2C data for at least `CARD_RESET_DRAIN_MS` continuously
         for (uint32_t startMs = _GetMs() ; (_GetMs() - startMs) < CARD_RESET_DRAIN_MS ;) {
-
-            // Read the next chunk of available data
-            uint32_t available = 0;
-            uint8_t buffer[ALLOC_CHUNK] = {0};
-            chunkLen = (chunkLen > sizeof(buffer)) ? sizeof(buffer) : chunkLen;
-            chunkLen = (chunkLen > _I2CMax()) ? _I2CMax() : chunkLen;
-            const char *err = _I2CReceive(_I2CAddress(), buffer, chunkLen, &available);
+            bool nonControlCharFoundThisDrain = false;
+            const char *err = _i2cDrainInput(&somethingFound, &nonControlCharFoundThisDrain);
             if (err) {
                 // We have received a hardware or protocol level error.
                 // Introduce delay to relieve system stress.
@@ -260,27 +286,11 @@ bool _i2cNoteReset(void)
                 notecardReady = false;
                 continue;
             }
-
-            // Set content flags
-            if (chunkLen) {
-                somethingFound = true;
-                // The Notecard responds to a bare `\n` with `\r\n`. If we get
-                // any other characters back, it means the host and Notecard
-                // aren't synced up yet and we need to transmit `\n` again.
-                for (size_t i = 0; i < chunkLen ; ++i) {
-                    char ch = buffer[i];
-                    if (ch != '\n' && ch != '\r') {
-                        nonControlCharFound = true;
-                        // Reset the timer with each non-control character
-                        startMs = _GetMs();
-                    }
-                }
+            if (nonControlCharFoundThisDrain) {
+                nonControlCharFound = true;
+                // Reset the timer with each non-control character.
+                startMs = _GetMs();
             }
-
-            // Read the minimum of the available bytes left to read and what
-            // will fit into a 16-bit unsigned value (_I2CReceive takes the
-            // buffer size as a uint16_t).
-            chunkLen = (available > 0xFFFF) ? 0xFFFF : available;
 
             _DelayMs(CARD_REQUEST_I2C_CHUNK_DELAY_MS);
         }
@@ -314,6 +324,18 @@ bool _i2cNoteReset(void)
 
     // Done
     return notecardReady;
+}
+
+/**************************************************************************/
+/*!
+  @brief Drain any residual bytes from the I2C input buffer.
+*/
+/**************************************************************************/
+void _i2cNoteDrain(void)
+{
+    _LockI2C();
+    (void)_i2cDrainInput(NULL, NULL);
+    _UnlockI2C();
 }
 
 /**************************************************************************/

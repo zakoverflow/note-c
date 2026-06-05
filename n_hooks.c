@@ -189,10 +189,12 @@ NOTE_C_STATIC int noteLogLevel = NOTE_C_LOG_LEVEL;
 // Internal hooks
 typedef bool (*nNoteResetFn) (void);
 typedef const char * (*nTransactionFn) (const char *, size_t, char **, uint32_t);
+typedef void (*nDrainFn) (void);
 typedef const char * (*nReceiveFn) (uint8_t *, uint32_t *, bool, uint32_t, uint32_t *);
 typedef const char * (*nTransmitFn) (const uint8_t *, uint32_t, bool);
 NOTE_C_STATIC nNoteResetFn notecardReset = NULL;
 NOTE_C_STATIC nTransactionFn notecardTransaction = NULL;
+NOTE_C_STATIC nDrainFn notecardDrain = NULL;
 NOTE_C_STATIC nReceiveFn notecardChunkedReceive = NULL;
 NOTE_C_STATIC nTransmitFn notecardChunkedTransmit = NULL;
 
@@ -219,12 +221,14 @@ NOTE_C_STATIC void _noteSetActiveInterface(int interface)
     case NOTE_C_INTERFACE_SERIAL:
         notecardReset = _serialNoteReset;
         notecardTransaction = _serialNoteTransaction;
+        notecardDrain = _serialNoteDrain;
         notecardChunkedReceive = _serialChunkedReceive;
         notecardChunkedTransmit = _serialChunkedTransmit;
         break;
     case NOTE_C_INTERFACE_I2C:
         notecardReset = _i2cNoteReset;
         notecardTransaction = _i2cNoteTransaction;
+        notecardDrain = _i2cNoteDrain;
         notecardChunkedReceive = _i2cNoteChunkedReceive;
         notecardChunkedTransmit = _i2cNoteChunkedTransmit;
         break;
@@ -232,6 +236,7 @@ NOTE_C_STATIC void _noteSetActiveInterface(int interface)
         hookActiveInterface = NOTE_C_INTERFACE_NONE; // unrecognized interfaces are disabled
         notecardReset = NULL;
         notecardTransaction = NULL;
+        notecardDrain = NULL;
         notecardChunkedReceive = NULL;
         notecardChunkedTransmit = NULL;
         break;
@@ -1045,6 +1050,20 @@ const char *_noteJSONTransaction(const char *request, size_t reqLen, char **resp
         return "a valid interface must be selected";
     }
     return notecardTransaction(request, reqLen, response, timeoutMs);
+}
+
+/**************************************************************************/
+/*!
+  @brief  Drain residual bytes from the Notecard using the currently-set
+  platform hook.
+*/
+/**************************************************************************/
+void _noteDrain(void)
+{
+    if (notecardDrain == NULL || hookActiveInterface == NOTE_C_INTERFACE_NONE) {
+        return;
+    }
+    notecardDrain();
 }
 
 /**************************************************************************/
