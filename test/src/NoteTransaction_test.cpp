@@ -166,16 +166,63 @@ public:
 };
 int MultipleHeartbeatsThenValid::call_count = 0;
 
+bool noteTransactionTestNotecardLocked = false;
+bool noteTransactionRunNestedTransactionOnUnlock = false;
+bool noteTransactionNestedTransactionActive = false;
+bool noteTransactionNestedTransactionStarted = false;
+uint16_t noteTransactionFirstSeqNo = 0;
+uint16_t noteTransactionNestedSeqNo = 0;
+uint8_t noteTransactionCrcAddCallCount = 0;
+
 char * _crcAdd_customFake(char *json, uint16_t seqno)
 {
     // Custom fake implementation for _crcAdd
+    if (noteTransactionCrcAddCallCount == 0) {
+        noteTransactionFirstSeqNo = seqno;
+    }
+    if (noteTransactionNestedTransactionActive) {
+        noteTransactionNestedSeqNo = seqno;
+    }
+    noteTransactionCrcAddCallCount++;
     return strdup(json);
+}
+
+void noteTransactionTestLockNote(void)
+{
+    noteTransactionTestNotecardLocked = true;
+}
+
+void noteTransactionTestUnlockNote(void)
+{
+    if (noteTransactionRunNestedTransactionOnUnlock && !noteTransactionNestedTransactionStarted) {
+        noteTransactionNestedTransactionStarted = true;
+        noteTransactionNestedTransactionActive = true;
+        J *req = NoteNewRequest("note.add");
+        if (req != NULL) {
+            J *resp = _noteTransactionShouldLock(req, false);
+            JDelete(req);
+            if (resp != NULL) {
+                JDelete(resp);
+            }
+        }
+        noteTransactionNestedTransactionActive = false;
+    }
+
+    noteTransactionTestNotecardLocked = false;
 }
 
 SCENARIO("NoteTransaction")
 {
     NoteSetFnDefault(malloc, free, NULL, NULL);
+    NoteSetFnNoteMutex(NULL, NULL);
     _crcAdd_fake.custom_fake = _crcAdd_customFake;
+    noteTransactionTestNotecardLocked = false;
+    noteTransactionRunNestedTransactionOnUnlock = false;
+    noteTransactionNestedTransactionActive = false;
+    noteTransactionNestedTransactionStarted = false;
+    noteTransactionFirstSeqNo = 0;
+    noteTransactionNestedSeqNo = 0;
+    noteTransactionCrcAddCallCount = 0;
 
     // NoteReset's mock should succeed unless the test explicitly instructs
     // it to fail.
@@ -449,6 +496,26 @@ SCENARIO("NoteTransaction")
     }
 
 #ifndef NOTE_C_LOW_MEM
+    SECTION("Sequence number advances before the Notecard lock is released") {
+        J *req = NoteNewRequest("note.add");
+        REQUIRE(req != NULL);
+        _noteJSONTransaction_fake.custom_fake = _noteJSONTransactionValid;
+        noteTransactionRunNestedTransactionOnUnlock = true;
+        NoteSetFnNoteMutex(noteTransactionTestLockNote, noteTransactionTestUnlockNote);
+
+        J *resp = NoteTransaction(req);
+
+        CHECK(noteTransactionNestedTransactionStarted);
+        CHECK(noteTransactionNestedSeqNo == (uint16_t)(noteTransactionFirstSeqNo + 1));
+        CHECK(resp != NULL);
+        CHECK(!NoteResponseError(resp));
+        CHECK(!noteTransactionTestNotecardLocked);
+
+        NoteSetFnNoteMutex(NULL, NULL);
+        JDelete(req);
+        JDelete(resp);
+    }
+
     SECTION("Bad CRC") {
         J *req = NoteNewRequest("note.add");
         REQUIRE(req != NULL);
