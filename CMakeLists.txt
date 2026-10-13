@@ -144,6 +144,7 @@ if(NOTE_C_BUILD_TESTS)
             -Wall
             -Wextra
             -Wpedantic
+            -Wshadow
             -Werror
             -Og
             -ggdb

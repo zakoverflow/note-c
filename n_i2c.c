@@ -60,9 +60,9 @@ NOTE_C_STATIC const char * _i2cNoteQueryLength(uint32_t * available,
 
         // If we've timed out, return an error
         if (timeoutMs && _GetMs() - startMs >= timeoutMs) {
-            const char *err = ERRSTR("timeout: no response from Notecard {io}", c_iotimeout);
-            NOTE_C_LOG_ERROR(err);
-            return err;
+            const char *errStr = ERRSTR("timeout: no response from Notecard {io}", c_iotimeout);
+            NOTE_C_LOG_ERROR(errStr);
+            return errStr;
         }
     }
     return NULL;

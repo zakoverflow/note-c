@@ -433,12 +433,12 @@ const char * NoteBinaryStoreReceive(uint8_t *buffer, uint32_t bufLen,
 
     // Check buffer overflow condition
     if (available) {
-        const char *err = ERRSTR("unexpected data available", c_err);
-        NOTE_C_LOG_ERROR(err);
+        const char *errStr = ERRSTR("unexpected data available", c_err);
+        NOTE_C_LOG_ERROR(errStr);
         // Queue a reset when a problem is detected, otherwise `note-c` will
         // attempt to allocate memory to receive the response.
         NoteResetRequired();
-        return err;
+        return errStr;
     }
 
     // _ChunkedReceive returns the raw bytes that came off the wire, which
@@ -451,12 +451,12 @@ const char * NoteBinaryStoreReceive(uint8_t *buffer, uint32_t bufLen,
 
     // Ensure the decoded length matches the caller's expectations.
     if (decodedLen != decLen) {
-        const char *err = ERRSTR("length mismatch after decoding", c_err);
-        NOTE_C_LOG_ERROR(err);
+        const char *errStr = ERRSTR("length mismatch after decoding", c_err);
+        NOTE_C_LOG_ERROR(errStr);
         // Queue a reset when a problem is detected, otherwise `note-c` will
         // attempt to allocate memory to receive the response.
         NoteResetRequired();
-        return err;
+        return errStr;
     }
 
     // Put a hard marker at the end of the decoded portion of the buffer. This
@@ -468,9 +468,9 @@ const char * NoteBinaryStoreReceive(uint8_t *buffer, uint32_t bufLen,
     char hashString[NOTE_MD5_HASH_STRING_SIZE] = {0};
     NoteMD5HashString(buffer, decLen, hashString, NOTE_MD5_HASH_STRING_SIZE);
     if (strncmp(hashString, status, NOTE_MD5_HASH_STRING_SIZE)) {
-        const char *err = ERRSTR("computed MD5 does not match received MD5", c_err);
-        NOTE_C_LOG_ERROR(err);
-        return err;
+        const char *errStr = ERRSTR("computed MD5 does not match received MD5", c_err);
+        NOTE_C_LOG_ERROR(errStr);
+        return errStr;
     }
 
     // Return `NULL` if success, else error string pointer
@@ -639,19 +639,19 @@ const char * NoteBinaryStoreTransmit(uint8_t *unencodedData, uint32_t unencodedL
         _LockNote();
 
         // Issue a "card.binary.put"
-        J *req = NoteNewRequest("card.binary.put");
-        if (req) {
-            JAddIntToObject(req, "cobs", encLen);
+        J *putReq = NoteNewRequest("card.binary.put");
+        if (putReq) {
+            JAddIntToObject(putReq, "cobs", encLen);
             if (notecardOffset) {
-                JAddIntToObject(req, "offset", notecardOffset);
+                JAddIntToObject(putReq, "offset", notecardOffset);
             }
-            JAddStringToObject(req, "status", hashString);
+            JAddStringToObject(putReq, "status", hashString);
 
             // We already have the Notecard lock, so call
             // _noteTransactionShouldLock with `lockNotecard` set to false so we
             // don't try to lock again.
-            rsp = _noteTransactionShouldLock(req, false);
-            JDelete(req);
+            rsp = _noteTransactionShouldLock(putReq, false);
+            JDelete(putReq);
             // Ensure the transaction doesn't return an error.
             if (!rsp || NoteResponseError(rsp)) {
                 if (rsp) {
@@ -695,10 +695,10 @@ const char * NoteBinaryStoreTransmit(uint8_t *unencodedData, uint32_t unencodedL
         // Issue a `"card.binary"` request.
         rsp = NoteRequestResponse(NoteNewRequest("card.binary"));
         if (!rsp) {
-            const char *err = ERRSTR("unable to validate request", c_err);
-            NOTE_C_LOG_ERROR(err);
+            const char *errStr = ERRSTR("unable to validate request", c_err);
+            NOTE_C_LOG_ERROR(errStr);
             NoteBinaryCodecDecode(encodedData, encLen, encodedData, bufLen);
-            return err;
+            return errStr;
         }
 
         // Ensure the transaction doesn't return an error
@@ -712,17 +712,17 @@ const char * NoteBinaryStoreTransmit(uint8_t *unencodedData, uint32_t unencodedL
                     NOTE_C_LOG_WARN("retrying binary transmission...");
                     continue;
                 }
-                const char *err = ERRSTR("binary data invalid", c_bad);
-                NOTE_C_LOG_ERROR(err);
+                const char *errStr = ERRSTR("binary data invalid", c_bad);
+                NOTE_C_LOG_ERROR(errStr);
                 NoteBinaryCodecDecode(encodedData, encLen, encodedData, bufLen);
-                return err;
+                return errStr;
             } else {
                 NOTE_C_LOG_ERROR(jErr);
                 JDelete(rsp);
-                const char *err = ERRSTR("unexpected error received during confirmation", c_bad);
-                NOTE_C_LOG_ERROR(err);
+                const char *errStr = ERRSTR("unexpected error received during confirmation", c_bad);
+                NOTE_C_LOG_ERROR(errStr);
                 NoteBinaryCodecDecode(encodedData, encLen, encodedData, bufLen);
-                return err;
+                return errStr;
             }
         }
         JDelete(rsp);
