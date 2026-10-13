@@ -125,6 +125,14 @@ SCENARIO("_serialNoteTransaction")
             THEN("_noteSerialReceive is not called") {
                 CHECK(_noteSerialReceive_fake.call_count == 0);
             }
+
+            THEN("The serial transmit hook never receives the read-only"
+                 " c_newline constant (regression: blues/note-c#223)") {
+                REQUIRE(_noteSerialTransmit_fake.call_count == 1);
+                CHECK(_noteSerialTransmit_fake.arg0_val
+                      != (const uint8_t *)c_newline);
+                CHECK(_noteSerialTransmit_fake.arg1_val == c_newline_len);
+            }
         }
 
         AND_GIVEN("_serialChunkedTransmit returns an error") {
