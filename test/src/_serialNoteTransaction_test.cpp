@@ -122,6 +122,14 @@ SCENARIO("_serialNoteTransaction")
                 CHECK(!memcmp(transmitBuf + rawReqLen, c_newline, c_newline_len));
             }
 
+            THEN("The newline is never passed to the transmit hook from read-only"
+                 " memory (regression for #223)") {
+                REQUIRE(_noteSerialTransmit_fake.call_count > 0);
+                const uint8_t *newlineBuf = _noteSerialTransmit_fake.arg0_val;
+                CHECK(newlineBuf != (const uint8_t *)c_newline);
+                CHECK(_noteSerialTransmit_fake.arg1_val == c_newline_len);
+            }
+
             THEN("_noteSerialReceive is not called") {
                 CHECK(_noteSerialReceive_fake.call_count == 0);
             }
